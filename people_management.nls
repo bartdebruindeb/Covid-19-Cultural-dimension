@@ -1,0 +1,228 @@
+__includes ["people_decision.nls"  "epistemic_model.nls" "social_networks.nls"]
+
+people-own [
+  age
+  infection-status
+  epistemic-infection-status
+  current-activity
+  is-moving-outside-for-reaching-current-activity?
+  current-motivation
+  last-day-observed-symptoms
+  has-done-shopping
+  purpose-of-the-current-gathering
+  my-home
+  my-work
+  my-essential-shops
+  
+  is-currently-allocated-a-bed-in-hospital?
+  ;set-default-shape turtles "circle"
+
+  ;;the disease profile records how the person will react to the disease
+  disease-profile
+  duration-current-disease-status
+
+  current-person-I-depend-on
+
+  ;;this variable indicates whether the carrier can effectively be cured or whether he/she is too weak and will die anyway if sick
+  ;;if data shows high difference, it might to be expanded at a later time for finer granularity (i.e. "can-be-cured-if-cured-early?" and "can-be-cured-if-cured-late?")
+  can-be-cured?
+
+
+  ;"needs" are a central driver in decision-making (e.g. eating, belonging to groups, physical security).
+  ;"needs" are a relevant concept for accounting for the reasons that can push an agent for violating guidelines, in spite of generally complying to them
+  ;"needs" can be seen as criteria that agents tend to satisfy.
+  ;As a criteria, each need can be related to a level of satisfaction
+  ;Each need is related to a prevalence, i.e. how much this need is "active" or is "bothering agent decision".
+  ;The less a need is currently satisfied, the more prevalent it becomes (comparatively to other times when the same need has been satisfied); i.e. prevalence is monotonous wrt need satisfaction
+  ;Each need is related to a specific prevalence measure: certain needs can become suddently very critical while the criticality of others is more smooth
+  ;Likewise, a relative ordering exists within needs/prevalence (e.g. a person both hungry and lonely is likely to eat alone whereas a mildly-fed lonely person is more likely to share).
+
+  ;Agents tend to act towards satisfying the most pressing needs first;
+  ;satisfying needs tends to require active engagement and satisfied needs tend to be less cognitively important for the agent
+
+  ;Various needs have a relative *prevalence* for the agent (e.g. eating is less relatively important than breathing), which then affect how much the agent will aim to satisfy this need when acting
+  ;Agents assign different priorities for their needs, this priority order is culturally-sensitive and can thus shape collective responses
+
+  ;For follow-up coders:
+  ;More needs can and should be added as one sees fit
+  ;Here, I rely on very simplified [0,1] variables for memorizing when was the need satisfied for the last time and making the maths easy.
+  ;Though, in principle, needs are shaped by the history of the agent rather than "regularly growing" and thus more advanced representations are advised --if needed.
+  ;For instance, a "food-security" need should be much more prevalent if the agent experienced forced hunger due to a shortage
+
+  ;Currently, the need level and the prevalence are weighted and scaled within [0,1], where 1 means "the most prevalent ever" and "the least satisfied ever".
+  ;Keeping the scale is very important for conceptual coherence.
+
+  ;Regarding assumptions/scale, my gut feeling (to be checked against theory) is that available plans and need prevalence should evolve over time when the agent faces new situations
+  ;Notably, new plans for satisfying should be learnable by agents (e.g. satisfying physical-activity needs might need some adaptation when locked in)
+  ;and traumatic events or long-term deprivation should affect the need structure (e.g. food deprivation should dramatically bump up the prevalence of food safety, thus causing rush to supermarkets for instance)
+
+  ;;need-related aspects
+  ;note that these terminal variables could/should eventually end-up as functions based on more specific needs
+  ;here are two needs for the sake of illustration
+  ;checkout the list of universal human needs for more ideas
+  
+  ;these are two needs from Maslow
+  belonging-need-satisfaction
+  my-importance-for-belonging-needs
+  
+  ; safety-need-satisfaction is a reporter
+  my-importance-for-safety-needs
+  my-importance-for-self-esteem-needs
+  autonomy-need-satisfaction
+  my-importance-for-autonomy-needs
+  
+  ; Variables for belonging needs
+  social-distance-profile
+  is-I-apply-social-distancing?
+  days-since-seen-relatives
+  days-since-seen-colleagues
+  days-since-seen-friends
+  
+  ; Subneeds of safety
+  compliance-need-satisfaction
+  my-importance-for-compliance-needs
+  my-importance-for-survival-needs ; survival-need-satisfaction is a reporter
+  risk-avoidance-need-satisfaction
+  my-importance-for-risk-avoidance-needs
+  my-importance-for-food-safety-needs
+  my-importance-for-financial-survival-needs
+  
+  ;financial-safety-need-satisfaction
+  sleep-need-satisfaction
+  my-importance-for-sleep-needs
+  my-importance-for-health-needs 
+  my-importance-for-financial-safety-needs
+  
+  ; Subneeds for self esteem
+  relaxing-need-satisfaction
+  my-importance-for-relaxing-needs
+  luxury-need-satisfaction
+  my-importance-for-luxury-needs
+  amount-of-last-luxury-items-bought
+
+  my-amount-of-capital
+  my-previous-amount-of-capital
+  my-current-income
+  my-expected-income
+  
+  ;;;;;;;; CULTURAL MODEL VARIABLES (by Amineh, Bart, Kurt) ;;;;;;;;
+  
+  ;SCHWARTZ VALUE VARIABLES
+  hedonism
+  stimulation
+  self-direction
+  universalism
+  benevolence
+  conformity-tradition
+  security
+  power
+  achievement
+  
+  ;VALUE SYSTEM VARIABLES (LIST)
+  value-system
+  
+  ;IMPORTANCE OF NEEDS (DETERMINED BY Maslow HON & VALUES)
+  importance-weight-survival
+  importance-weight-safety
+  importance-weight-belonging
+  importance-weight-esteem
+  
+  ;IMPORTANCE Subneeds of SURVIVAL
+  importance-weight-food-safety
+  importance-weight-financial-survival
+  importance-weight-health
+  importance-weight-sleep
+  
+  ;IMPORTANCE Subneeds of SAFETY
+  importance-weight-financial-safety
+  importance-weight-risk-avoidance
+  importance-weight-compliance
+  
+  ;IMPORTANCE Subneeds of ESTEEM
+  importance-weight-luxury
+  importance-weight-leisure
+  importance-weight-autonomy
+  
+  ;Need satisfaction levels (i.e. level of watertanks)
+  ;SURVIVAL:
+  food-safety-satisfaction-level
+  financial-survival-satisfaction-level
+  health-satisfaction-level
+  sleep-satisfaction-level
+  
+  ;SAFETY:
+  financial-safety-satisfaction-level
+  risk-avoidance-satisfaction-level
+  compliance-satisfaction-level
+  
+  ;BELONGING:
+  belonging-satisfaction-level
+  
+  ;SELF-ESTEEM:
+  leisure-satisfaction-level
+  luxury-satisfaction-level
+  autonomy-satisfaction-level
+
+]
+
+to update-people-epistemic-status
+  ask people [update-epistemic-status]
+end
+
+to-report default-color
+  if age = "young" [report green]
+  if age = "student" [report orange]
+  if age = "worker" [report blue]
+  if age = "retired" [report red]
+end
+
+to-report has-a-work?
+   report any? my-gathering-links with  [member? work-motive features]
+ end
+
+to-report homeless-people
+  report people with [not any? out-link-neighbors with [gathering-type = "home"]]
+end
+to-report children
+  report people with [is-young?]
+end
+
+to-report is-young?
+  report age = young-age
+end
+
+to-report total-amount-of-capital
+  report sum [my-amount-of-capital] of people
+end
+
+to-report retirees-average-amount-of-capital
+  report (sum [my-amount-of-capital] of people with [age = "retired"]) / (count people with [age = "retired"])
+end
+
+to-report workers-average-amount-of-capital
+  report mean [my-amount-of-capital] of workers
+end
+
+to-report students-average-amount-of-capital
+  report (sum [my-amount-of-capital] of people with [age = "student"]) / (count people with [age = "student"])
+end
+
+to-report young-average-amount-of-capital
+  report (sum [my-amount-of-capital] of people with [age = "young"]) / (count people with [age = "young"])
+end
+
+to-report worker-age
+  report "worker"
+end
+
+to-report student-age
+  report "student"
+end
+
+to-report retired-age
+  report "retired"
+end
+
+to-report young-age
+  report "young"
+end

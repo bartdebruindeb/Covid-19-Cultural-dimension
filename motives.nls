@@ -1,0 +1,12 @@
+ to-report is-forced-motive? [m]
+  report m = "mandatory"
+end
+
+to-report treatment-motive
+  report "treatment"
+end
+
+to-report work-motive
+  report "contractual obligation"
+end
+  

@@ -1,0 +1,62 @@
+directed-link-breed [dependable-adult-links dependable-adult-link]
+
+;;this representation works as long as the workplace network does not become too large
+;directed-link-breed [workplace-colleague-links workplace-colleague-link]
+
+;breed [work-social-networks work-social-network]
+
+
+to-report my-relatives
+  report other [gatherers] of my-home
+end
+
+to-report my-colleagues
+  if not is-worker? [report (turtle-set)]
+  report other [hired-workers-here] of my-work
+  ;report workplace-colleague-link-neighbors
+  ;let my-wp  my-workplace
+  ;if my-wp != nobody [
+ ;   report other [gatherers with [my-workplace = my-wp]] of my-wp
+ ; ]
+ ; report (turtle-set nobody)
+end
+
+to-report my-friends
+  report other [gatherers] of my-private-leisure
+end
+
+to-report people-that-depend-on-me
+  report in-dependable-adult-link-neighbors
+end
+
+to-report workers
+  report people with [is-worker?]
+end
+
+to-report is-child?
+  report age = "young"
+end
+
+to-report students
+  report people with [ is-student?]
+end
+
+to-report is-adult?
+  report is-student? or is-worker? or is-retired?
+end
+
+to-report is-student?
+  report age = "student"
+end
+
+to-report is-worker?
+  report age = "worker"
+end
+
+to-report is-retired?
+  report age = "retired"
+end
+
+to-report retireds
+  report people with [is-retired?]
+end
