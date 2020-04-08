@@ -1,0 +1,211 @@
+ ;the importance levels for each community need (*** what is a community need? ***) should add up to 1
+
+
+;*** MAP VALUE SYSTEMS TO IMPORTANCE WEIGHTS ***
+to setup-importance-of-needs-value-based
+  
+  ;These are the water tank needs with random starting values (the other water tanks: financial safety, financial are calculated and located in the need_defintion.nls file): 
+  ;*** are water tanks not constrained to [0,1]? ***
+  ;*** how are initial settings for need satisfaction levels determined? ***
+  
+  ;Initiate need satisfaction levels (i.e. fill up watertanks)
+  set belonging-need-satisfaction random-float 0.5 + 0.5
+  
+  set risk-avoidance-need-satisfaction random-float 0.5 + 0.5
+  set compliance-need-satisfaction random-float 0.5 + 0.5
+  
+  set relaxing-need-satisfaction random-float 0.3 + 0.7
+  set luxury-need-satisfaction random-float 0.3 + 0.7  
+  set autonomy-need-satisfaction 0.95
+  
+  set sleep-need-satisfaction 1
+  
+  ;Initiate social distancing variables
+  set social-distance-profile clamp 0 1 random-normal mean-social-distance-profile std-dev-social-distance-profile
+  set is-I-apply-social-distancing? is-social-distancing-measure-active?
+  
+  ;MASLOW NEEDS
+  set my-importance-for-survival-needs clamp 0.01 1 random-normal importance-survival needs-std-dev
+  set my-importance-for-safety-needs 1 - my-importance-for-belonging-needs
+  ;*** what is the ratio-safety-belonging parameter? ***
+  set my-importance-for-belonging-needs clamp 0.01 1 random-normal ratio-safety-belonging needs-std-dev
+  set my-importance-for-self-esteem-needs clamp 0.01 1 random-normal importance-self-esteem needs-std-dev
+
+  ;SURVIVAL NEEDS
+  set my-importance-for-health-needs 1
+  set my-importance-for-sleep-needs 1
+  set my-importance-for-food-safety-needs 1
+  set my-importance-for-financial-survival-needs 1
+  
+  ;SAFETY NEEDS
+  set my-importance-for-financial-safety-needs clamp 0.01 1 random-normal importance-financial-safety needs-std-dev
+  set my-importance-for-compliance-needs clamp 0.01 1 random-normal importance-compliance needs-std-dev
+  set my-importance-for-risk-avoidance-needs clamp 0.01 1 random-normal importance-risk-avoidance needs-std-dev
+
+  ;SELF-ESTEEM
+  set my-importance-for-relaxing-needs clamp 0.01 1 random-normal importance-leisure needs-std-dev
+  set my-importance-for-luxury-needs clamp 0.01 1 random-normal importance-luxury needs-std-dev
+  ;*** classify autonomy as a subneed of self-esteem! ***
+  set my-importance-for-autonomy-needs clamp 0.01 1 random-normal importance-autonomy needs-std-dev
+ 
+  
+  ;;;;;;;;;;;;;;;;;;;;;;;;;; CULTURAL MODEL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  map-hofstede-dimensions-to-schwartz-values
+  
+  ;Initiate need satisfaction levels (i.e. fill up watertanks)
+  ;SURVIVAL:
+  set food-safety-satisfaction-level food-safety-need-satisfaction ;this reporter is located in need_definition.nls
+  set financial-survival-satisfaction-level financial-survival-need-satisfaction ;this reporter is located in need_definition.nls
+  set health-satisfaction-level health-need-satisfaction ;this reporter is located in need_definition.nls
+  set sleep-satisfaction-level 1
+  
+  ;SAFETY:
+  set financial-safety-satisfaction-level financial-safety-need-satisfaction ;this reporter is located in need_definition.nls
+  set risk-avoidance-satisfaction-level random-float 1
+  set compliance-satisfaction-level random-float 1
+  
+  ;BELONGING:
+  set belonging-satisfaction-level random-float 1
+  
+  ;SELF-ESTEEM:
+  set leisure-satisfaction-level random-float 1
+  set luxury-satisfaction-level random-float 1
+  set autonomy-satisfaction-level 0.95
+  
+  ; *** FINISH THIS PART: HOW DO VALUES MAP ONTO IMPORTANCE WEIGHTS ***
+  ;For each agent: set the importance ascribed to its needs
+
+  ;Maslow needs
+  set importance-weight-survival 999
+  set importance-weight-safety 999
+  set importance-weight-belonging 999
+  set importance-weight-esteem 999
+
+  ;Subneeds of SURVIVAL
+  set importance-weight-food-safety 999
+  set importance-weight-financial-survival 999
+  set importance-weight-health 999
+  set importance-weight-sleep 999
+  
+  ;Subneeds of SAFETY
+  let safety-standardizer sum (list power security conformity-tradition)
+  set importance-weight-financial-safety power / safety-standardizer
+  set importance-weight-risk-avoidance security / safety-standardizer
+  set importance-weight-compliance conformity-tradition / safety-standardizer
+  
+  ;Subneeds of ESTEEM
+  set importance-weight-luxury 999
+  set importance-weight-leisure 999
+  set importance-weight-autonomy 999
+
+end
+
+;*** MAP HOFSTEDE DIMENSIONS TO INITIATION OF VALUE SYSTEMS ***
+to map-hofstede-dimensions-to-schwartz-values
+  
+  let UAI_pos uncertainty-avoidance
+  let PDI_pos power-distance
+  let MAS_pos masculinity-vs-femininity
+  let IDV_pos individualism-vs-collectivism
+  let IVR_pos indulgence-vs-restraint
+  let LTO_pos long-vs-short-termism
+  
+  let UAI_neg 100 - uncertainty-avoidance
+  let PDI_neg 100 - power-distance
+  let MAS_neg 100 - masculinity-vs-femininity
+  let IDV_neg 100 - individualism-vs-collectivism
+  let IVR_neg 100 - indulgence-vs-restraint
+  let LTO_neg 100 - long-vs-short-termism
+  
+  let mean_HED (IDV_pos + IVR_pos) / 2
+  let mean_STM (IDV_pos + UAI_neg + PDI_neg ) / 3
+  let mean_SD (IDV_pos + UAI_neg + PDI_neg ) / 3
+  let mean_UNI (IDV_neg + UAI_neg + MAS_neg) / 3
+  let mean_BEN (IDV_neg + UAI_neg + MAS_neg) / 3
+  let mean_CT (IDV_neg + UAI_pos + PDI_pos + IVR_neg) / 4
+  let mean_SEC (IDV_neg + UAI_pos + PDI_pos) / 3
+  let mean_POW (IDV_pos + UAI_pos + MAS_pos) / 3
+  let mean_ACH (IDV_pos + MAS_pos) / 2
+  
+  set hedonism clamp 0 100 random-normal mean_HED value-std-dev
+  set stimulation clamp 0 100 random-normal mean_STM value-std-dev
+  set self-direction clamp 0 100 random-normal mean_SD value-std-dev
+  set universalism clamp 0 100 random-normal mean_UNI value-std-dev
+  set benevolence clamp 0 100 random-normal mean_BEN value-std-dev
+  set conformity-tradition clamp 0 100 random-normal mean_CT value-std-dev
+  set security clamp 0 100 random-normal mean_SEC value-std-dev
+  set power clamp 0 100 random-normal mean_POW value-std-dev
+  set achievement clamp 0 100 random-normal mean_ACH value-std-dev
+  
+  configure-agent-value-system
+  
+end
+
+; *** CODING: LOGICAL CONSISTENCY OF VALUE SYSTEM ***
+to configure-agent-value-system
+  set value-system (list hedonism stimulation self-direction conformity-tradition security universalism benevolence power achievement) 
+end
+
+;scores taken from https://www.hofstede-insights.com/product/compare-countries/
+to load-nations-hofstede-dimension-scores
+  if national_culture = "Netherlands" [
+    set power-distance 38
+    set individualism-vs-collectivism 80
+    set masculinity-vs-femininity 14
+    set uncertainty-avoidance 53
+    set long-vs-short-termism 67
+    set indulgence-vs-restraint 68
+  ]
+  
+  if national_culture = "United States" [
+    set power-distance 40
+    set individualism-vs-collectivism 91
+    set masculinity-vs-femininity 62
+    set uncertainty-avoidance 46
+    set long-vs-short-termism 26
+    set indulgence-vs-restraint 68
+  ]
+  
+  if national_culture = "China" [
+    set power-distance 80
+    set individualism-vs-collectivism 20
+    set masculinity-vs-femininity 66
+    set uncertainty-avoidance 30
+    set long-vs-short-termism 87
+    set indulgence-vs-restraint 24
+  ]
+  
+  if national_culture = "Russia" [
+    set power-distance 93
+    set individualism-vs-collectivism 39
+    set masculinity-vs-femininity 36
+    set uncertainty-avoidance 95
+    set long-vs-short-termism 81
+    set indulgence-vs-restraint 20
+  ]
+end
+
+to decay-need-satisfaction-value-based
+  let belonging-decay 0.02
+  if any? my-relatives and days-since-seen-relatives > 0 [set belonging-decay belonging-decay * 1.5]
+  if any? my-colleagues and days-since-seen-colleagues > 0 [set belonging-decay belonging-decay * 1.5]
+  if days-since-seen-friends > 0 [set belonging-decay belonging-decay * 1.5]
+  
+  set belonging-need-satisfaction belonging-need-satisfaction - belonging-decay
+  if belonging-need-satisfaction < 0 [set belonging-need-satisfaction 0]
+  
+  set compliance-need-satisfaction compliance-need-satisfaction * 0.8
+  if compliance-need-satisfaction < 0 [set compliance-need-satisfaction 0]
+  
+  set risk-avoidance-need-satisfaction risk-avoidance-need-satisfaction * 0.8
+  if risk-avoidance-need-satisfaction < 0 [set risk-avoidance-need-satisfaction 0]
+  
+  set relaxing-need-satisfaction relaxing-need-satisfaction * 0.8
+  if relaxing-need-satisfaction < 0 [set relaxing-need-satisfaction 0]
+  
+  set luxury-need-satisfaction luxury-need-satisfaction * 0.98
+  if luxury-need-satisfaction < 0 [set luxury-need-satisfaction 0]
+end
+
+  

@@ -1,0 +1,230 @@
+ 
+to perform-trades-between-gathering-points
+  
+  let total-amount-of-goods-available-in-workplaces sum [stock-of-goods] of gathering-points with [gathering-type = "workplace"]
+  let virtual-total-amount-of-goods-available-in-workplaces total-amount-of-goods-available-in-workplaces
+  let virtual-total-amount-of-goods-available-in-workplaces-converted-to-capital virtual-total-amount-of-goods-available-in-workplaces * unit-price-of-goods
+  let actual-amount-of-stocks-bought 0
+  
+  ;essential-shop
+  let total-capital-available-in-essential-shops-to-buy-goods 0
+  ask gathering-points with [gathering-type = "essential-shop"]
+  [
+    let capital-available-to-buy-goods amount-of-capital - max-amount-of-capital-to-retain
+    set capital-available-to-buy-goods max (list capital-available-to-buy-goods 0)
+    set total-capital-available-in-essential-shops-to-buy-goods total-capital-available-in-essential-shops-to-buy-goods + capital-available-to-buy-goods
+  ]
+  
+  let total-capital-to-be-spent-by-essential-shops min (list total-capital-available-in-essential-shops-to-buy-goods virtual-total-amount-of-goods-available-in-workplaces-converted-to-capital)
+  
+  if total-capital-to-be-spent-by-essential-shops > 0
+  [
+    ask gathering-points with [gathering-type = "essential-shop"]
+    [
+      let capital-available-to-buy-goods amount-of-capital - max-amount-of-capital-to-retain
+      set capital-available-to-buy-goods max (list capital-available-to-buy-goods 0)
+      
+      let amount-charged capital-available-to-buy-goods / total-capital-available-in-essential-shops-to-buy-goods * total-capital-to-be-spent-by-essential-shops
+      let stock-bought (floor amount-charged / unit-price-of-goods)
+      set stock-bought min (list (max-stock-of-goods-in-a-shop - stock-of-goods) stock-bought)
+      set amount-charged stock-bought * unit-price-of-goods
+      
+      set amount-of-capital amount-of-capital - amount-charged
+      set current-profit current-profit - amount-charged
+      set stock-of-goods stock-of-goods + stock-bought
+      set actual-amount-of-stocks-bought actual-amount-of-stocks-bought + stock-bought
+    ]
+  ]
+  
+  ;updating "virtual" amount of goods available in workplaces
+  set virtual-total-amount-of-goods-available-in-workplaces virtual-total-amount-of-goods-available-in-workplaces - actual-amount-of-stocks-bought
+  set virtual-total-amount-of-goods-available-in-workplaces-converted-to-capital virtual-total-amount-of-goods-available-in-workplaces * unit-price-of-goods
+  
+  ;non-essential-shop
+  let total-capital-available-in-non-essential-shops-to-buy-goods 0
+  ask gathering-points with [gathering-type = "non-essential-shop"]
+  [
+    let capital-available-to-buy-goods amount-of-capital - max-amount-of-capital-to-retain
+    set capital-available-to-buy-goods max (list capital-available-to-buy-goods 0)
+    set total-capital-available-in-non-essential-shops-to-buy-goods total-capital-available-in-non-essential-shops-to-buy-goods + capital-available-to-buy-goods
+  ]
+  
+  let total-capital-to-be-spent-by-non-essential-shops min (list total-capital-available-in-non-essential-shops-to-buy-goods virtual-total-amount-of-goods-available-in-workplaces-converted-to-capital)
+  
+  if total-capital-to-be-spent-by-non-essential-shops > 0
+  [
+    ask gathering-points with [gathering-type = "non-essential-shop"]
+    [
+      let capital-available-to-buy-goods amount-of-capital - max-amount-of-capital-to-retain
+      set capital-available-to-buy-goods max (list capital-available-to-buy-goods 0)
+      let amount-charged capital-available-to-buy-goods / total-capital-available-in-non-essential-shops-to-buy-goods * total-capital-to-be-spent-by-non-essential-shops
+      
+      let stock-bought (floor amount-charged / unit-price-of-goods)
+      set stock-bought min (list (max-stock-of-goods-in-a-shop - stock-of-goods) stock-bought)
+      set amount-charged stock-bought * unit-price-of-goods
+      
+      set amount-of-capital amount-of-capital - amount-charged
+      set current-profit current-profit - amount-charged
+      set stock-of-goods stock-of-goods + stock-bought
+      set actual-amount-of-stocks-bought actual-amount-of-stocks-bought + stock-bought
+    ]
+  ]
+  
+  ;workplace
+  let total-capital-spent-by-all-shops actual-amount-of-stocks-bought * unit-price-of-goods
+  set total-amount-of-capital-in-circulation total-amount-of-capital-in-circulation + total-capital-spent-by-all-shops
+  
+  if total-capital-spent-by-all-shops > 0
+  [
+    ask gathering-points with [gathering-type = "workplace"]
+    [
+      let capital-income stock-of-goods / total-amount-of-goods-available-in-workplaces * total-capital-spent-by-all-shops
+      set amount-of-capital amount-of-capital + capital-income
+      set current-profit current-profit + capital-income
+      set stock-of-goods stock-of-goods - capital-income / unit-price-of-goods
+    ]
+  ]
+end
+
+to perform-government-actions
+  ;collect taxes
+  let taxes-collected 0
+
+  ask gathering-points with [gathering-type = "essential-shop"]
+  [
+    if current-profit > 0
+    [
+      let tax-amount current-profit * ratio-tax-on-essential-shops
+      set taxes-collected taxes-collected + tax-amount
+      set amount-of-capital amount-of-capital - tax-amount
+      set current-profit current-profit - tax-amount
+    ]
+  ]
+
+  ask gathering-points with [gathering-type = "non-essential-shop"]
+  [
+    if current-profit > 0
+    [
+      let tax-amount current-profit * ratio-tax-on-non-essential-shops
+      set taxes-collected taxes-collected + tax-amount
+      set amount-of-capital amount-of-capital - tax-amount
+      set current-profit current-profit - tax-amount
+    ]
+  ]
+
+  ask gathering-points with [gathering-type = "workplace"]
+  [
+    if current-profit > 0
+    [
+      let tax-amount current-profit * ratio-tax-on-workplaces
+      set taxes-collected taxes-collected + tax-amount
+      set amount-of-capital amount-of-capital - tax-amount
+      set current-profit current-profit - tax-amount
+    ]
+  ]
+
+  ask people with [age = "worker"]
+  [
+    if my-current-income > 0
+    [
+      let tax-amount my-current-income * ratio-tax-on-workers
+      set taxes-collected taxes-collected + tax-amount
+      set my-amount-of-capital my-amount-of-capital - tax-amount
+      set my-current-income my-current-income - tax-amount
+    ]
+  ]
+
+  ;redistribution
+  let school-subsidy taxes-collected * ratio-school-subsidy
+  let hospital-subsidy taxes-collected * ratio-hospital-subsidy
+  let university-subsidy taxes-collected * ratio-university-subsidy
+  let retirees-subsidy taxes-collected * ratio-retirees-subsidy
+  let students-subsidy taxes-collected * ratio-students-subsidy
+  
+  let n-of-schools count gathering-points with [gathering-type = "school"]
+  ask gathering-points with [gathering-type = "school"]
+  [
+    set amount-of-capital amount-of-capital + school-subsidy / n-of-schools
+    set current-profit current-profit + school-subsidy / n-of-schools
+  ]
+
+  let n-of-hospitals count gathering-points with [gathering-type = "hospital"]
+  ask gathering-points with [gathering-type = "hospital"]
+  [
+    set amount-of-capital amount-of-capital + hospital-subsidy / n-of-hospitals
+    set current-profit current-profit + hospital-subsidy / n-of-hospitals
+  ]
+
+  let n-of-universities count gathering-points with [gathering-type = "university"]
+  ask gathering-points with [gathering-type = "university"]
+  [
+    set amount-of-capital amount-of-capital + university-subsidy / n-of-universities
+    set current-profit current-profit + university-subsidy / n-of-universities
+  ]
+
+  let n-of-retirees count people with [age = "retired"]
+  ask people with [age = "retired"]
+  [
+    set my-amount-of-capital my-amount-of-capital + retirees-subsidy / n-of-retirees
+    set my-current-income my-current-income + retirees-subsidy / n-of-retirees
+  ]
+
+  let n-of-students count people with [age = "student"]
+  ask people with [age = "student"]
+  [
+    set my-amount-of-capital my-amount-of-capital + students-subsidy / n-of-students
+    set my-current-income my-current-income + students-subsidy / n-of-students
+  ]
+  
+  let taxes-redistributed school-subsidy + hospital-subsidy + university-subsidy + retirees-subsidy + students-subsidy
+  if taxes-redistributed < taxes-collected
+  [
+    set government-reserve-of-capital government-reserve-of-capital + (taxes-collected - taxes-redistributed)
+  ]
+  
+  set total-amount-of-capital-in-circulation total-amount-of-capital-in-circulation + taxes-redistributed
+end
+
+to-report #adult-people-out-of-capital
+  report count people with [age != "young" and my-amount-of-capital <= 0]
+end
+
+to-report #retired-out-of-capital
+  report count people with [age = "retired" and my-amount-of-capital <= 0]
+end
+
+to-report #workers-out-of-capital
+  report count people with [age = "worker" and my-amount-of-capital <= 0]
+end
+
+to-report #students-out-of-capital
+  report count people with [age = "student" and my-amount-of-capital <= 0]
+end
+
+to-report #essential-shops-out-of-capital
+  report count gathering-points with [gathering-type = "essential-shop" and amount-of-capital <= 0]
+end
+
+to-report #non-essential-shops-out-of-capital
+  report count gathering-points with [gathering-type = "non-essential-shop" and amount-of-capital <= 0]
+end
+
+to-report #universities-out-of-capital
+  report count gathering-points with [gathering-type = "university" and amount-of-capital <= 0]
+end
+
+to-report #hospitals-out-of-capital
+  report count gathering-points with [gathering-type = "hospital" and amount-of-capital <= 0]
+end
+
+to-report #workplaces-out-of-capital
+  report count gathering-points with [gathering-type = "workplace" and amount-of-capital <= 0]
+end
+
+to-report #schools-out-of-capital
+  report count gathering-points with [gathering-type = "school" and amount-of-capital <= 0]
+end
+
+to-report velocity-of-money-in-total-system
+  report total-amount-of-capital-in-circulation / total-amount-of-resources-available-in-the-system
+end

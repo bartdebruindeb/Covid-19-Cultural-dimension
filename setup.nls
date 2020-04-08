@@ -1,0 +1,389 @@
+__includes ["scenarios.nls"]
+
+globals[#min-workers-in-adults-homes
+  #min-students-in-adults-homes
+  #min-retirees-in-retired-couple-homes
+  #min-workers-in-family-homes
+  #min-students-in-family-homes
+  #min-young-in-family-homes
+  #min-workers-in-multi-generational-homes
+  #min-students-in-multi-generational-homes
+  #min-young-in-multi-generational-homes
+  #min-retirees-in-multi-generational-homes
+  distribution-control-variable]
+
+to setup
+  profiler:reset
+  profiler:start
+  reset-timer
+  clear-all
+  check-parameters
+  set-default-shape people "circle"
+  if debug? or static-seed?[  random-seed 47822 ]
+  set slice-of-the-day "morning"
+  set day-of-the-week "monday"
+  set current-day 0
+  set #dead-people 0
+  set government-reserve-of-capital government-initial-reserve-of-capital
+  
+  setup-activities
+  create-all-households
+  setup-social-networks
+  if with-infected? [infect-one-random-person]
+  
+  update-display
+  
+  ask links[hide-link]
+  
+  set is-lockdown-active? false
+  reset-ticks
+  
+  profiler:stop
+  let _fname "report.log"
+  carefully [file-delete _fname] []
+  file-open _fname
+  file-print profiler:report
+  file-close
+end
+
+to setup-social-networks
+  ask children with [any? [gatherers with [is-adult?]] of my-home ][create-dependable-adult-link-to one-of [gatherers with [is-adult?]] of my-home ]
+  ;  ask workers [  create-workplace-colleague-links-to other workers with [my-workplace = [my-workplace] of myself]]
+end
+
+
+to check-parameters
+  if probability-self-recovery-symptoms + probability-recorvery-if-treated + probability-unavoidable-death > 1
+  [
+    error "probability-self-recovery-symptoms + probability-recorvery-if-treated + probability-unavoidable-death > 1"
+  ]
+  
+  if probability-self-recovery-symptoms-old + probability-recorvery-if-treated-old + probability-unavoidable-death-old > 1
+  [
+    error "probability-self-recovery-symptoms-old + probability-recorvery-if-treated-old + probability-unavoidable-death-old > 1"
+  ]
+end
+
+
+to create-all-households
+  
+  let #adults-homes floor (#households * ratio-adults-homes)
+  let #retired-couple-homes floor (#households * ratio-retired-couple-homes)
+  let #family-homes floor (#households * ratio-family-homes)
+  let #multi-generational-homes #households - (#adults-homes + #retired-couple-homes + #family-homes)
+  
+  repeat #adults-homes [create-household "adult"]
+  repeat #family-homes [create-household "family"]
+  repeat #retired-couple-homes[create-household "retired-couple"]
+  repeat #multi-generational-homes [create-household "multigenerational"]
+  
+  ask homes [ set available-food-rations count gatherers * (random days-of-rations-bought + days-of-rations-bought) ]
+end
+
+to create-household [t]
+  let current-home nobody
+  create-gathering-points 1 [set current-home self
+    set homes (turtle-set homes self)
+    set gathering-type "home"
+    set shape "house"
+    set color green
+    set xcor 9 * max-pxcor / 10 set ycor max-pycor * random-float 1
+  ]
+  
+  if t = "adult"
+  [
+    let l-age "undefined"
+    ifelse random-float 1 < 0.5
+    [set l-age student-age]
+    [set l-age worker-age]
+    setup-person current-home l-age
+    setup-person current-home l-age
+    stop
+  ]
+  
+  if t = "family"
+  [
+    setup-person current-home worker-age
+    setup-person current-home worker-age
+    setup-person current-home young-age
+    setup-person current-home young-age
+    stop
+  ]
+  
+  if t = "retired-couple"
+  [
+    setup-person current-home retired-age
+    setup-person current-home retired-age
+    stop
+  ]
+  
+  if t = "multigenerational"
+  [
+    setup-person current-home retired-age
+    setup-person current-home retired-age
+    setup-person current-home worker-age
+    setup-person current-home worker-age
+    setup-person current-home young-age
+    setup-person current-home young-age
+    stop
+  ]
+  
+  error (sentence "not implemented" t)
+end
+
+to-report my-starting-amount-of-capital
+  if age = worker-age [report starting-amount-of-capital-workers]
+  if age = retired-age[report starting-amount-of-capital-retired]
+  if age = student-age[report starting-amount-of-capital-students]
+  if age = young-age[report 0]
+end
+
+to setup-person [current-home l-age]
+  create-people 1 [
+    set age l-age
+    
+    set my-amount-of-capital my-starting-amount-of-capital
+    set current-activity current-home
+    set my-home current-home
+    
+    set my-previous-amount-of-capital my-amount-of-capital
+    
+    setup-disease-profile
+    
+    create-gathering-link-to current-home [set features (list "rest" "visit family")]
+    setup-person1
+    
+  ]
+end
+
+to setup-person1
+  set is-moving-outside-for-reaching-current-activity? false
+  
+  ;setup-person-home
+  
+  set is-currently-allocated-a-bed-in-hospital? false
+  
+  setup-relation-to-gathering-points
+  
+  set current-person-I-depend-on nobody
+  set color default-color
+  set size 0.5
+  set infection-status "healthy"
+  set epistemic-infection-status "healthy"
+  set last-day-observed-symptoms nobody ;should raise an error if used before being initialized
+  set has-done-shopping false
+  setup-person-needs 
+end
+
+to setup-person-needs 
+  ;if cultural model is activated? then load hofstede dimensions...
+  ;initiate value systems based on the hofstede scores...
+  ;and calibrate the importance of weights according to the agent's value system.
+  ifelse culture? [
+    load-nations-hofstede-dimension-scores
+    map-hofstede-dimensions-to-schwartz-values
+    setup-importance-of-needs-value-based
+  ]
+  [
+    set social-distance-profile clamp 0 1 random-normal mean-social-distance-profile std-dev-social-distance-profile
+    set is-I-apply-social-distancing? is-social-distancing-measure-active?
+    
+    set belonging-need-satisfaction random-float 0.5 + 0.5
+    set compliance-need-satisfaction random-float 0.5 + 0.5
+    set relaxing-need-satisfaction random-float 0.3 + 0.7
+    set luxury-need-satisfaction random-float 0.3 + 0.7
+    set risk-avoidance-need-satisfaction random-float 0.5 + 0.5
+    set autonomy-need-satisfaction 0.95
+    ;set financial-safety-need-satisfaction 1
+    ;the importance levels for each community need should add up to 1
+    set my-importance-for-belonging-needs clamp 0.01 1 random-normal ratio-safety-belonging needs-std-dev
+    set my-importance-for-safety-needs 1 - my-importance-for-belonging-needs
+    set my-importance-for-self-esteem-needs clamp 0.01 1 random-normal importance-self-esteem needs-std-dev
+    set my-importance-for-compliance-needs clamp 0.01 1 random-normal importance-compliance needs-std-dev
+    set my-importance-for-survival-needs clamp 0.01 1 random-normal importance-survival needs-std-dev
+    set my-importance-for-relaxing-needs clamp 0.01 1 random-normal importance-leisure needs-std-dev
+    set my-importance-for-luxury-needs clamp 0.01 1 random-normal importance-luxury needs-std-dev
+    set my-importance-for-risk-avoidance-needs clamp 0.01 1 random-normal importance-risk-avoidance needs-std-dev
+    set my-importance-for-autonomy-needs clamp 0.01 1 random-normal importance-autonomy needs-std-dev
+    set my-importance-for-food-safety-needs 1
+    set my-importance-for-financial-survival-needs 1
+    set my-importance-for-financial-safety-needs clamp 0.01 1 random-normal importance-financial-safety needs-std-dev
+  ]
+end
+
+to setup-relation-to-gathering-points
+  
+  create-gathering-link-to one-of hospitals
+  [
+    set features (list "get-tested" "get-treatment")
+  ]
+  
+  create-gathering-link-to one-of private-leisure-points
+  [  set features (list "relaxing")]
+  create-gathering-link-to one-of public-leisure-points
+  [ set features (list "relaxing")]
+  
+  setup-relation-to-gathering-points1
+end
+
+to setup-relation-to-gathering-points1
+  
+  set my-essential-shops n-of (min list 2 (ceiling (#essential-shops * 0.2))) essential-shops
+  create-gathering-links-to my-essential-shops
+  [ set features (list "essential shopping" "shopping")]
+  create-gathering-links-to n-of (min list 4 (ceiling (#non-essential-shops * 0.4))) non-essential-shops
+  [ set features (list "relaxing" "shopping")]
+  
+  if is-young? [
+    create-gathering-link-to one-of schools [ set features (list "mandatory")]]
+  
+  if is-student? [ create-gathering-link-to one-of universities [ set features (list "learning")]]
+  
+  setup-worker-relation-to-gathering-point
+end
+
+to  setup-worker-relation-to-gathering-point
+  if is-worker? [
+    let target one-of workplaces
+    let rand random-float 1
+    if rand < probability-hospital-personel [
+      set target one-of hospitals
+    ]
+    if rand >= probability-hospital-personel and rand < probability-hospital-personel + probability-school-personel
+    [
+      set target one-of schools
+    ]
+    
+    if rand >= probability-hospital-personel + probability-school-personel and rand < probability-hospital-personel + probability-school-personel + probability-university-personel
+    [
+      set target one-of universities
+    ]
+    
+    if rand >= probability-hospital-personel + probability-school-personel + probability-university-personel and
+    rand < probability-hospital-personel + probability-school-personel + probability-university-personel + probability-shopkeeper
+    [
+      set target one-of shops
+    ]
+    set my-work target
+    ask target [set hired-workers-here (turtle-set hired-workers-here myself)]
+  ]
+end
+
+
+
+to setup-activities
+  set hospitals (turtle-set)
+  set workplaces (turtle-set)
+  set schools (turtle-set)
+  set homes (turtle-set)
+  set essential-shops (turtle-set)
+  set non-essential-shops (turtle-set)
+  set universities (turtle-set)
+  set public-leisure-points (turtle-set)
+  set private-leisure-points (turtle-set)
+  
+  create-gathering-points #schools [
+    set schools (turtle-set schools self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "school" set shape "triangle" set color orange set xcor max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "school"] / (#schools + 1)]
+  
+  create-gathering-points #universities [
+    set universities (turtle-set universities self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "university" set shape "triangle 2" set color magenta + 2 set xcor 2 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "university"] / (#universities + 1)]
+  
+  create-gathering-points #workplaces [
+    set workplaces (turtle-set workplaces self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "workplace" set shape "pentagon" set color sky + 3 set xcor 3 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "workplace"] / (#workplaces + 1)]
+  
+  create-gathering-points #essential-shops [
+    set essential-shops (turtle-set essential-shops self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "essential-shop" set shape "cow" set color yellow set xcor 4 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "essential-shop"] / (#essential-shops + 1)]
+  create-gathering-points #non-essential-shops [
+    set non-essential-shops (turtle-set non-essential-shops self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "non-essential-shop" set shape "face happy" set color violet + 2 set xcor 5 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "non-essential-shop"] / (#non-essential-shops + 1)]
+  create-gathering-points #hospital [
+    set  hospitals (turtle-set  hospitals self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "hospital" set shape "x" set heading 45 set color red set size 2 set xcor 6 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "hospital"] / (#hospital + 1)]
+  create-gathering-points #public-leisure [
+    set public-leisure-points (turtle-set public-leisure-points self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "public-leisure" set shape "square 2" set color lime  set xcor 7 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "public-leisure"] / (#public-leisure + 1)]
+  
+  create-gathering-points #private-leisure [
+    set private-leisure-points (turtle-set private-leisure-points self)
+    set hired-workers-here (turtle-set)
+    set gathering-type "private-leisure" set shape "square" set color red + 3 set xcor 8 * max-pxcor / 10 set ycor max-pycor * count gathering-points with [gathering-type = "private-leisure"] / (#private-leisure + 1)]
+  
+  
+  ask gathering-points with [gathering-type = "school"] [set amount-of-capital 100]
+  ask gathering-points with [gathering-type = "university"] [set amount-of-capital 100]
+  ask gathering-points with [gathering-type = "workplace"] [set amount-of-capital 200 set stock-of-goods 100]
+  ask gathering-points with [gathering-type = "essential-shop"] [set amount-of-capital 100 set max-amount-of-capital-to-retain amount-of-capital set stock-of-goods max-stock-of-goods-in-a-shop]
+  ask gathering-points with [gathering-type = "non-essential-shop"] [set amount-of-capital 100 set max-amount-of-capital-to-retain amount-of-capital set stock-of-goods max-stock-of-goods-in-a-shop]
+  ask gathering-points with [gathering-type = "hospital"] [set amount-of-capital 1000]
+  setup-activity-animate-positions
+  
+  if migration?
+  [
+    create-gathering-points 1
+    [
+      set gathering-type "away"
+      set away-gathering-point self
+      set shape "airplane"
+    ]
+  ]
+  
+  ask gathering-points with [gathering-type = 0] [error (sentence "ill defined " self)]
+end
+
+to setup-activity-animate-positions
+  if animate? [
+    let endless-loop 0
+    let to-place gathering-points
+    let placed turtle-set nobody
+    while [any? to-place] [
+      let focal one-of to-place
+      let p-pxcor random-pxcor
+      let p-pycor random-pycor
+      ifelse count to-place > 10 [
+        let placing up-to-n-of 4 to-place with [gathering-type = [gathering-type] of focal]
+        
+        while [any? placed with [abs (p-pxcor - pxcor) <= 2  and abs (p-pycor - pycor) <= 2] or p-pxcor >= (max-pxcor - 1) or p-pxcor <= (min-pxcor + 1) or p-pycor >= (max-pycor - 1) or p-pycor <= (min-pycor + 1)] [
+          set endless-loop endless-loop + 1
+          if endless-loop > 10000 [error "cannot find a spot!"]
+          set p-pxcor random-pxcor
+          set p-pycor random-pycor
+        ]
+        (foreach (up-to-n-of (count placing) (sort (([neighbors] of (patch p-pxcor p-pycor)) with [not member? self [neighbors4] of patch p-pxcor p-pycor]))) (sort placing) [ [ p g ] -> ask g [ move-to p ] ])
+        set placed (turtle-set placed placing)
+      ] [
+        while [any? placed with [abs (p-pxcor - pxcor) <= 1 and abs (p-pycor - pycor) <= 1] or p-pxcor = max-pxcor or p-pxcor = min-pxcor or p-pycor = max-pycor or p-pycor = min-pycor] [
+          set p-pxcor random-pxcor
+          set p-pycor random-pycor
+        ]
+        ask focal [
+          setxy p-pxcor p-pycor
+        ]
+        set placed (turtle-set placed focal)
+      ]
+      set to-place to-place with [not member? self placed]
+      ;show to-place
+    ]
+    ;      ask gathering-points [
+    ;        let possible-xcor random-pxcor
+    ;        let possible-ycor random-pycor
+    ;        while [any? gathering-points-on patch possible-xcor possible-ycor] [
+    ;          set possible-xcor random-pxcor
+    ;          set possible-ycor random-pycor
+    ;        ]
+    ;        setxy possible-xcor possible-ycor
+    ;      ]
+  ]
+  
+  
+end
