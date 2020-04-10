@@ -11,6 +11,9 @@ to update-needs-for-playing [current-activity-descriptor]
   ]
 
   ; *** Where are the updates for: financial safety, financial survival, food safety, health ? ***
+  ;&&& The updates of the water tanks of these needs are based on variables like current capital (financial safety and survival) and amount of 
+  ;    food in household (food safety) and are updated when buying and consuming. So they are calculated when they have to be used for calculating the expected satisfaction gain
+ ;     but there is now variable that shows the water level of these need. We can add them if we want to &&&
   
   ;Update BELONGING
   set belonging-need-satisfaction
@@ -48,6 +51,9 @@ to update-needs-for-playing [current-activity-descriptor]
 end
 
 ;*** shall we introduce some functions that incorporate the (non-linear) influence of time on need decay? ***
+;&&& Do you mean with this, that the if for a long time there you have not seen friends the decay will be higher than if you just saw them yesterday, interesting idea. 
+;    Maybe we need to make a list of these things we can also add and ask Amineh or Frank where the priority lies. &&&
+
 
 ;;this procedure is a simple representation of need decay
 ;important features:
@@ -57,6 +63,7 @@ end
 to decay-need-satisfaction
   
   ; *** Where are the decay rates for: financial safety, financial survival, food safety, health ? ***
+  ; &&& See answer above, there is no variable that shows the water level of these needs, so the decay is also not visualized. &&&
   
   let belonging-decay 0.02
   if any? my-relatives and days-since-seen-relatives > 0 [set belonging-decay belonging-decay * 1.5]
@@ -104,7 +111,8 @@ to-report global-prevalence-of [ad]
 end
 
 ;*** why refer to an 'expected' prevalence for belonging whereas all the other needs do not get this treatment? ***
-;&&&  &&&
+;&&& Here the Maslow prevalence needs are calculated with the Expected satisfaction gain of a maslow need (Sum of (SdeSubneeds *wSubneeds) times the maslow Multiplier. 
+; As 'subneed' belonging is the only single subneed of maswow need belonging, the maslow prevalance is calculated. &&&
 ;simple direct linear translation; experience shows that sigmoid functions are good candidates 
 to-report my-current-expected-prevalence-of-belonging-needs [ad]
   report my-importance-for-belonging-needs * my-expected-discounted-satisfaction-gain-for-belonging-needs-after-having-played ad
