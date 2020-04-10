@@ -128,7 +128,7 @@ end
 ;update these numbers based on how many people are actually met when moving
 ;include networks and joint meetings
 
-------------------SUBNeeds UNdiscounted satisfaction gain sorted by survival to esteem--------------------------- 
+;------------------SUBNeeds UNdiscounted satisfaction gain sorted by survival to esteem--------------------------- 
 
 
 to-report expected-undiscounted-health-needs-satisfaction-increase-for-playing [ad]
@@ -470,7 +470,7 @@ to-report my-expected-discounted-satisfaction-gain-for-self-esteem-after-having-
   let needs (list 
   my-expected-discounted-satisfaction-gain-for-relaxing-after-having-played ad
   my-expected-discounted-satisfaction-gain-for-autonomy-after-having-played ad)
-  let importances (list my-importance-for-relaxing-needs my-importance-for-autonomy)
+  let importances (list my-importance-for-relaxing-needs my-importance-for-autonomy-needs)
   if age != "young" [
     set needs fput (my-expected-discounted-satisfaction-gain-for-luxury-after-having-played ad) needs
     set importances fput my-importance-for-luxury-needs importances
