@@ -79,55 +79,57 @@ to decay-need-satisfaction
   if luxury-need-satisfaction < 0 [set luxury-need-satisfaction 0]
 end
 
+to-report global-prevalence-of [ad]
+  reset-timer
+  let belonging-needs my-current-expected-prevalence-of-belonging-needs ad
+
+  let safety-needs my-current-prevalence-of-safety-needs ad
+
+  let self-esteem-needs my-current-prevalence-of-self-esteem-needs ad
+  let survival-needs my-current-prevalence-of-survival-needs ad
+
+  let total-satisfaction
+  belonging-needs
+  +
+  safety-needs
+  +
+  self-esteem-needs
+  +
+  survival-needs
+
+  ;should be expanded with new needs as they are added
+
+  debug-file-print (sentence "Global prevalence of:" [gathering-type] of location-of ad " " motive-of ad " " total-satisfaction)
+  report total-satisfaction
+end
+
+;*** why refer to an 'expected' prevalence for belonging whereas all the other needs do not get this treatment? ***
+;&&&  &&&
+;simple direct linear translation; experience shows that sigmoid functions are good candidates 
+to-report my-current-expected-prevalence-of-belonging-needs [ad]
+  report my-importance-for-belonging-needs * my-expected-discounted-satisfaction-gain-for-belonging-needs-after-having-played ad
+
+end
+
+to-report my-current-prevalence-of-safety-needs [ad]
+  report my-importance-for-safety-needs * (my-expected-discounted-satisfaction-gain-for-safety-after-having-played ad)
+end
+
+to-report my-current-prevalence-of-survival-needs [ad]
+  report my-importance-for-survival-needs * (my-expected-discounted-satisfaction-gain-for-survival-needs-after-having-played ad)
+end
+
+to-report my-current-prevalence-of-self-esteem-needs [ad]
+  report my-importance-for-self-esteem-needs * (my-expected-discounted-satisfaction-gain-for-self-esteem-after-having-played ad)
+end
+
 ;*** lets look at what we can do here ***
 ;Future work:
 ;update these numbers based on how many people are actually met when moving
 ;include networks and joint meetings
-to-report expected-undiscounted-belonging-needs-satisfaction-increase-for-playing [ad]
-  let gp location-of ad
-  let motive motive-of ad
 
+------------------SUBNeeds UNdiscounted satisfaction gain sorted by survival to esteem--------------------------- 
 
-  let number [expected-number-of-other-participants] of gp
-  let base 0
-  let network-bonus 1
-  let social-distancing-cut 1
-  if social-distancing-of ad [
-    set social-distancing-cut (1 - social-distance-profile)
-  ]
-  ;show (sentence "expected shift satisfaction community:"
-  ;   [gathering-type] of first activity-descriptor last activity-descriptor number)
-  ifelse number = 0
-  [set base 0]
-  [ifelse number < 5
-    [set base 0.05]
-    [ifelse number < 20
-      [set base 0.1]
-      [set base 0.25]
-    ]
-  ]
-  let family-present any? (([gatherers] of gp) with [member? self [my-relatives] of myself])
-  if family-present and days-since-seen-relatives > 0 [
-    set network-bonus network-bonus + min (list 0.5 (days-since-seen-relatives / 28))
-  ]
-
-  if is-worker?
-  [
-    let colleagues-present any? (([gatherers] of gp) with [member? self [my-colleagues] of myself])
-    if colleagues-present and days-since-seen-colleagues > 0 [
-      set network-bonus network-bonus + min (list 0.5 (days-since-seen-colleagues / 28))
-    ]
-  ]
-  set time-counting-1 time-counting-1 + timer
-  reset-timer
-  let friends-present any? (([gatherers] of gp) with [member? self [my-friends] of myself])
-  if friends-present and days-since-seen-friends > 0 [
-    set network-bonus network-bonus + min (list 0.5 (days-since-seen-friends / 28))
-  ]
-      set time-counting-2 time-counting-2 + timer
-  reset-timer
-  report base * network-bonus * social-distancing-cut
-end
 
 to-report expected-undiscounted-health-needs-satisfaction-increase-for-playing [ad]
  ifelse is-believing-to-be-infected? or has-internally-visible-symptoms?
@@ -148,6 +150,38 @@ to-report expected-undiscounted-health-needs-satisfaction-increase-for-playing [
   ]
   ;;can be updated if agents start to be deprived from sleep, not needed at the moment
   [report 1]
+end
+
+to-report expected-undiscounted-sleep-needs-satisfaction-increase-for-playing [ad]
+  let gp location-of ad
+  let motive motive-of ad
+
+  if motive = "rest" [
+    if slice-of-the-day = "night" [
+      report ifelse-value has-internally-visible-symptoms? [ 0.6 ] [ 0.8 ]
+    ]
+    report ifelse-value has-internally-visible-symptoms? [ 0.15 ] [ 0.2 ]
+  ]
+  if is-currently-being-treated-at-hospital? and is-get-healed-to-hospital-descriptor? ad [
+    if slice-of-the-day = "night" [
+      report 0.7
+    ]
+    report 0.15
+  ]
+  report 0
+end
+
+; The agents expect to get food for seven days at a time
+to-report expected-undiscounted-food-safety-needs-satisfaction-increase-for-playing [ad]
+  let motive motive-of ad
+  if motive = "essential shopping" [
+    let available-food-days [available-food-rations] of min-one-of (gathering-link-neighbors with [gathering-type = "home"]) [available-food-rations]
+    if available-food-days >= 14 [
+      report 0
+    ]
+    report max (list 0.5 (1 - (14 - available-food-days) / 14))
+  ]
+  report 0
 end
 
 to-report expected-undiscounted-risk-avoidance-needs-satisfaction-increase-for-playing [ad]
@@ -182,25 +216,25 @@ to-report expected-undiscounted-risk-avoidance-needs-satisfaction-increase-for-p
   report result
 end
 
-to-report expected-undiscounted-sleep-needs-satisfaction-increase-for-playing [ad]
+to-report expected-undiscounted-financial-survival-needs-satisfaction-increase-for-playing [ad]
   let gp location-of ad
   let motive motive-of ad
+  let eating-costs price-of-rations-in-essential-shops * amount-of-rations-I-buy-when-going-to-essential-shops
 
-  if motive = "rest" [
-    if slice-of-the-day = "night" [
-      report ifelse-value has-internally-visible-symptoms? [ 0.6 ] [ 0.8 ]
+  if is-I-have-contractual-obligations? [
+    if gp = my-work [
+      report min (list (my-expected-income / eating-costs) 1)
     ]
-    report ifelse-value has-internally-visible-symptoms? [ 0.15 ] [ 0.2 ]
+    report max (list ((- my-expected-income) / eating-costs) 0)
   ]
-  if is-currently-being-treated-at-hospital? and is-get-healed-to-hospital-descriptor? ad [
-    if slice-of-the-day = "night" [
-      report 0.7
-    ]
-    report 0.15
+  if motive = "essential shopping" [
+    report (- min (list ((my-amount-of-capital - eating-costs) / eating-costs) 1))
+  ]
+  if motive = "shopping" [
+    report (- min (list ((my-amount-of-capital - amount-of-rations-I-buy-when-going-to-shops * price-of-rations-in-non-essential-shops) / eating-costs) 1))
   ]
   report 0
 end
-
 
 to-report expected-undiscounted-compliance-needs-satisfaction-increase-for-playing [ad]
   let gp location-of ad
@@ -273,15 +307,70 @@ to-report expected-undiscounted-compliance-needs-satisfaction-increase-for-playi
   report bonus-compliance-to-obligation
 end
 
-; The agents expect to get food for seven days at a time
-to-report expected-undiscounted-food-safety-needs-satisfaction-increase-for-playing [ad]
+to-report expected-undiscounted-belonging-needs-satisfaction-increase-for-playing [ad]
+  let gp location-of ad
   let motive motive-of ad
-  if motive = "essential shopping" [
-    let available-food-days [available-food-rations] of min-one-of (gathering-link-neighbors with [gathering-type = "home"]) [available-food-rations]
-    if available-food-days >= 14 [
-      report 0
+
+
+  let number [expected-number-of-other-participants] of gp
+  let base 0
+  let network-bonus 1
+  let social-distancing-cut 1
+  if social-distancing-of ad [
+    set social-distancing-cut (1 - social-distance-profile)
+  ]
+  ;show (sentence "expected shift satisfaction community:"
+  ;   [gathering-type] of first activity-descriptor last activity-descriptor number)
+  ifelse number = 0
+  [set base 0]
+  [ifelse number < 5
+    [set base 0.05]
+    [ifelse number < 20
+      [set base 0.1]
+      [set base 0.25]
     ]
-    report max (list 0.5 (1 - (14 - available-food-days) / 14))
+  ]
+  let family-present any? (([gatherers] of gp) with [member? self [my-relatives] of myself])
+  if family-present and days-since-seen-relatives > 0 [
+    set network-bonus network-bonus + min (list 0.5 (days-since-seen-relatives / 28))
+  ]
+
+  if is-worker?
+  [
+    let colleagues-present any? (([gatherers] of gp) with [member? self [my-colleagues] of myself])
+    if colleagues-present and days-since-seen-colleagues > 0 [
+      set network-bonus network-bonus + min (list 0.5 (days-since-seen-colleagues / 28))
+    ]
+  ]
+  set time-counting-1 time-counting-1 + timer
+  reset-timer
+  let friends-present any? (([gatherers] of gp) with [member? self [my-friends] of myself])
+  if friends-present and days-since-seen-friends > 0 [
+    set network-bonus network-bonus + min (list 0.5 (days-since-seen-friends / 28))
+  ]
+      set time-counting-2 time-counting-2 + timer
+  reset-timer
+  report base * network-bonus * social-distancing-cut
+end
+
+to-report expected-undiscounted-financial-safety-needs-satisfaction-increase-for-playing [ad]
+  let gp location-of ad
+  let motive motive-of ad
+  let eating-costs price-of-rations-in-essential-shops * amount-of-rations-I-buy-when-going-to-essential-shops
+
+  if is-I-have-contractual-obligations? and gp = my-work [
+    if my-previous-amount-of-capital > 0
+    [report clamp 0 1 my-expected-income / my-previous-amount-of-capital]
+    report 1
+  ]
+  if my-previous-amount-of-capital <= 0 [
+    report -1
+  ]
+  if motive = "essential shopping" [
+    report (- (eating-costs / my-previous-amount-of-capital))
+  ]
+  if motive = "shopping" [
+    report (- (amount-of-rations-I-buy-when-going-to-shops * price-of-rations-in-non-essential-shops / my-previous-amount-of-capital))
   ]
   report 0
 end
@@ -343,111 +432,19 @@ to-report expected-undiscounted-autonomy-needs-satisfaction-increase-for-playing
   report 0
 end
 
-to-report expected-undiscounted-financial-survival-needs-satisfaction-increase-for-playing [ad]
-  let gp location-of ad
-  let motive motive-of ad
-  let eating-costs price-of-rations-in-essential-shops * amount-of-rations-I-buy-when-going-to-essential-shops
 
-  if is-I-have-contractual-obligations? [
-    if gp = my-work [
-      report min (list (my-expected-income / eating-costs) 1)
-    ]
-    report max (list ((- my-expected-income) / eating-costs) 0)
+;;;;;;---------------MASLOW Needs discounted satisfaction gain sorted by survival to esteem--------------------------- 
+
+to-report my-expected-discounted-satisfaction-gain-for-survival-needs-after-having-played [ad]
+  let physiological-needs (list 
+    my-expected-discounted-satisfaction-gain-for-food-safety-after-having-played ad 
+    my-expected-discounted-satisfaction-gain-for-health-after-having-played ad
+    my-expected-discounted-satisfaction-gain-for-sleep-after-having-played ad  
+  )
+  if age != "young" [ ; The young te taken care of by their parents, so do not worry about finances
+    set physiological-needs fput (my-expected-discounted-satisfaction-gain-for-financial-survival-after-having-played ad) physiological-needs
   ]
-  if motive = "essential shopping" [
-    report (- min (list ((my-amount-of-capital - eating-costs) / eating-costs) 1))
-  ]
-  if motive = "shopping" [
-    report (- min (list ((my-amount-of-capital - amount-of-rations-I-buy-when-going-to-shops * price-of-rations-in-non-essential-shops) / eating-costs) 1))
-  ]
-  report 0
-end
-
-to-report expected-undiscounted-financial-safety-needs-satisfaction-increase-for-playing [ad]
-  let gp location-of ad
-  let motive motive-of ad
-  let eating-costs price-of-rations-in-essential-shops * amount-of-rations-I-buy-when-going-to-essential-shops
-
-  if is-I-have-contractual-obligations? and gp = my-work [
-    if my-previous-amount-of-capital > 0
-    [report clamp 0 1 my-expected-income / my-previous-amount-of-capital]
-    report 1
-  ]
-  if my-previous-amount-of-capital <= 0 [
-    report -1
-  ]
-  if motive = "essential shopping" [
-    report (- (eating-costs / my-previous-amount-of-capital))
-  ]
-  if motive = "shopping" [
-    report (- (amount-of-rations-I-buy-when-going-to-shops * price-of-rations-in-non-essential-shops / my-previous-amount-of-capital))
-  ]
-  report 0
-end
-
-
-to-report global-prevalence-of [ad]
-  reset-timer
-  let belonging-needs my-current-expected-prevalence-of-belonging-needs ad
-
-  let safety-needs my-current-prevalence-of-safety-needs ad
-
-  let self-esteem-needs my-current-prevalence-of-self-esteem-needs ad
-  let autonomy-needs my-current-prevalence-of-autonomy-needs ad
-  let survival-needs my-current-prevalence-of-survival-needs ad
-
-  let total-satisfaction
-  belonging-needs
-  +
-  safety-needs
-  +
-  self-esteem-needs
-  +
-  autonomy-needs
-  +
-  survival-needs
-
-  ;should be expanded with new needs as they are added
-
-  debug-file-print (sentence "Global prevalence of:" [gathering-type] of location-of ad " " motive-of ad " " total-satisfaction)
-  report total-satisfaction
-end
-
-;*** why refer to an 'expected' prevalence for belonging whereas all the other needs do not get this treatment? ***
-;simple direct linear translation; experience shows that sigmoid functions are good candidates
-to-report my-current-expected-prevalence-of-belonging-needs [ad]
-  report my-importance-for-belonging-needs * my-expected-discounted-satisfaction-gain-for-belonging-needs-after-having-played ad
-
-end
-
-to-report my-current-prevalence-of-safety-needs [ad]
-  report my-importance-for-safety-needs * (my-expected-discounted-satisfaction-gain-for-safety-after-having-played ad)
-end
-
-to-report my-current-prevalence-of-survival-needs [ad]
-  report my-importance-for-survival-needs * (my-expected-discounted-satisfaction-gain-for-survival-needs-after-having-played ad)
-end
-
-to-report my-current-prevalence-of-self-esteem-needs [ad]
-  report my-importance-for-self-esteem-needs * (my-expected-discounted-satisfaction-gain-for-self-esteem-after-having-played ad)
-end
-
-to-report my-current-prevalence-of-relaxing-needs [ad]
-  report my-importance-for-relaxing-needs * (my-expected-discounted-satisfaction-gain-for-relaxing-after-having-played ad)
-end
-
-to-report my-current-prevalence-of-autonomy-needs [ad]
-  report my-importance-for-autonomy-needs * (my-expected-discounted-satisfaction-gain-for-autonomy-after-having-played ad)
-end
-
-to-report my-expected-discounted-satisfaction-gain-for-self-esteem-after-having-played [ad]
-  let needs (list my-expected-discounted-satisfaction-gain-for-relaxing-after-having-played ad)
-  let importances (list my-importance-for-relaxing-needs)
-  if age != "young" [
-    set needs fput (my-expected-discounted-satisfaction-gain-for-luxury-after-having-played ad) needs
-    set importances fput my-importance-for-luxury-needs importances
-  ]
-  report weighted-mean needs importances
+  report max physiological-needs
 end
 
 to-report my-expected-discounted-satisfaction-gain-for-safety-after-having-played [ad]
@@ -469,30 +466,20 @@ to-report my-expected-discounted-satisfaction-gain-for-safety-after-having-playe
   report weighted-mean psychological-needs importances-psychological-needs
 end
 
-to-report my-expected-discounted-satisfaction-gain-for-compliance-after-having-played [ad]
-  let expected-increase expected-undiscounted-compliance-needs-satisfaction-increase-for-playing ad
-  let discounted-increase expected-increase * (1 - compliance-need-satisfaction)
-  report discounted-increase
-end
-
-to-report my-expected-discounted-satisfaction-gain-for-risk-avoidance-after-having-played [ad]
-  let expected-increase expected-undiscounted-risk-avoidance-needs-satisfaction-increase-for-playing ad
-  let discounted-increase expected-increase * (1 - risk-avoidance-need-satisfaction)
-  report discounted-increase
-end
-
-to-report my-expected-discounted-satisfaction-gain-for-survival-needs-after-having-played [ad]
-  let physiological-needs (list 
-    my-expected-discounted-satisfaction-gain-for-food-safety-after-having-played ad 
-    my-expected-discounted-satisfaction-gain-for-health-after-having-played ad
-    my-expected-discounted-satisfaction-gain-for-sleep-after-having-played ad  
-  )
-  if age != "young" [ ; The young te taken care of by their parents, so do not worry about finances
-    set physiological-needs fput (my-expected-discounted-satisfaction-gain-for-financial-survival-after-having-played ad) physiological-needs
+to-report my-expected-discounted-satisfaction-gain-for-self-esteem-after-having-played [ad]
+  let needs (list 
+  my-expected-discounted-satisfaction-gain-for-relaxing-after-having-played ad
+  my-expected-discounted-satisfaction-gain-for-autonomy-after-having-played ad)
+  let importances (list my-importance-for-relaxing-needs my-importance-for-autonomy)
+  if age != "young" [
+    set needs fput (my-expected-discounted-satisfaction-gain-for-luxury-after-having-played ad) needs
+    set importances fput my-importance-for-luxury-needs importances
   ]
-  report max physiological-needs
+  report weighted-mean needs importances
 end
 
+
+;;;;;;---------------Subneeds discounted satisfaction gain sorted by survival to esteem--------------------------- 
 to-report my-expected-discounted-satisfaction-gain-for-health-after-having-played [ad]
   let expected-increase expected-undiscounted-health-needs-satisfaction-increase-for-playing ad
   let discounted-increase expected-increase * (1 - health-need-satisfaction)
@@ -502,6 +489,36 @@ end
 to-report my-expected-discounted-satisfaction-gain-for-sleep-after-having-played [ad]
   let expected-increase expected-undiscounted-sleep-needs-satisfaction-increase-for-playing ad
   let discounted-increase expected-increase * (1 - sleep-need-satisfaction)
+  report discounted-increase
+end
+
+to-report my-expected-discounted-satisfaction-gain-for-food-safety-after-having-played [ad]
+  let expected-increase expected-undiscounted-food-safety-needs-satisfaction-increase-for-playing ad
+  let discounted-increase expected-increase * (1 - food-safety-need-satisfaction)
+  report discounted-increase
+end
+
+to-report my-expected-discounted-satisfaction-gain-for-financial-survival-after-having-played [ad]
+  let expected-increase expected-undiscounted-financial-survival-needs-satisfaction-increase-for-playing ad
+  let discounted-increase expected-increase * (1 - financial-survival-need-satisfaction)
+  report discounted-increase
+end
+
+to-report my-expected-discounted-satisfaction-gain-for-financial-safety-after-having-played [ad]
+  let expected-increase expected-undiscounted-financial-safety-needs-satisfaction-increase-for-playing ad
+  let discounted-increase expected-increase * (1 - financial-safety-need-satisfaction)
+  report discounted-increase
+end
+
+to-report my-expected-discounted-satisfaction-gain-for-compliance-after-having-played [ad]
+  let expected-increase expected-undiscounted-compliance-needs-satisfaction-increase-for-playing ad
+  let discounted-increase expected-increase * (1 - compliance-need-satisfaction)
+  report discounted-increase
+end
+
+to-report my-expected-discounted-satisfaction-gain-for-risk-avoidance-after-having-played [ad]
+  let expected-increase expected-undiscounted-risk-avoidance-needs-satisfaction-increase-for-playing ad
+  let discounted-increase expected-increase * (1 - risk-avoidance-need-satisfaction)
   report discounted-increase
 end
 
@@ -536,20 +553,4 @@ to-report my-expected-discounted-satisfaction-gain-for-autonomy-after-having-pla
   report discounted-increase
 end
 
-to-report my-expected-discounted-satisfaction-gain-for-food-safety-after-having-played [ad]
-  let expected-increase expected-undiscounted-food-safety-needs-satisfaction-increase-for-playing ad
-  let discounted-increase expected-increase * (1 - food-safety-need-satisfaction)
-  report discounted-increase
-end
 
-to-report my-expected-discounted-satisfaction-gain-for-financial-survival-after-having-played [ad]
-  let expected-increase expected-undiscounted-financial-survival-needs-satisfaction-increase-for-playing ad
-  let discounted-increase expected-increase * (1 - financial-survival-need-satisfaction)
-  report discounted-increase
-end
-
-to-report my-expected-discounted-satisfaction-gain-for-financial-safety-after-having-played [ad]
-  let expected-increase expected-undiscounted-financial-safety-needs-satisfaction-increase-for-playing ad
-  let discounted-increase expected-increase * (1 - financial-safety-need-satisfaction)
-  report discounted-increase
-end
