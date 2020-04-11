@@ -52,9 +52,6 @@ to decay-satisfaction-level
   set compliance-satisfaction-level compliance-satisfaction-level * 0.8
   if compliance-satisfaction-level < 0 [set compliance-satisfaction-level 0]
 
-  set risk-avoidance-satisfaction-level risk-avoidance-satisfaction-level * 0.8
-  if risk-avoidance-satisfaction-level < 0 [set risk-avoidance-satisfaction-level 0]
-
   set leisure-satisfaction-level leisure-satisfaction-level * 0.95
   if leisure-satisfaction-level < 0 [set leisure-satisfaction-level 0]
   
@@ -183,9 +180,9 @@ to-report SUE-risk-avoidance [ad]
       let number [expected-number-of-other-participants] of gp
       if number = 0 [set result 0.2 ]
       if number < 5 [set result 0.1 ]
-      if number < 10 [set result 0.05 ]
-      if number < 20 [set result 0]
-      set result -0.1
+      if number < 10 [set result -0.1 ]
+      if number < 20 [set result -0.2]
+      set result -0.3
     ]
   ]
 

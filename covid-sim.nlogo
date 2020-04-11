@@ -66,8 +66,8 @@ GRAPHICS-WINDOW
 50
 0
 50
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -309,7 +309,7 @@ density-factor-private-leisure
 density-factor-private-leisure
 0
 1
-0.21
+0.19
 0.01
 1
 NIL
@@ -324,7 +324,7 @@ density-factor-homes
 density-factor-homes
 0
 1
-1.0
+0.96
 0.01
 1
 NIL
@@ -2870,7 +2870,7 @@ SWITCH
 106
 culture?
 culture?
-1
+0
 1
 -1000
 
@@ -2882,7 +2882,7 @@ CHOOSER
 national_culture
 national_culture
 "Netherlands" "United States" "China" "Russia"
-1
+0
 
 SLIDER
 1952
@@ -2893,7 +2893,7 @@ uncertainty-avoidance
 uncertainty-avoidance
 0
 100
-46.0
+53.0
 1
 1
 NIL
@@ -2908,7 +2908,7 @@ individualism-vs-collectivism
 individualism-vs-collectivism
 0
 100
-91.0
+80.0
 1
 1
 NIL
@@ -2923,7 +2923,7 @@ power-distance
 power-distance
 0
 100
-40.0
+38.0
 1
 1
 NIL
@@ -2953,7 +2953,7 @@ masculinity-vs-femininity
 masculinity-vs-femininity
 0
 100
-62.0
+14.0
 1
 1
 NIL
@@ -2968,7 +2968,7 @@ long-vs-short-termism
 long-vs-short-termism
 0
 100
-26.0
+67.0
 1
 1
 NIL
