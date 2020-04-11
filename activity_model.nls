@@ -1,7 +1,8 @@
-__includes ["motives.nls"]
+__includes ["motives.nls" "transport.nls"]
 
 to execute-activity-effect
 
+  
   if is-currently-allocated-a-bed-in-hospital? and not (current-motivation = treatment-motive) [
     release-bed-in-hospital
   ]
@@ -13,9 +14,7 @@ to execute-activity-effect
   ]
   
   update-resources-based-on-current-activity
-  
-  
-  
+
   ;might be interesting to hold this variable as an integer, for storing when the next shopping will be needed
   ;additionally, we might want at some point to hold additional variables within homes (i.e. one person getting the food for the whole community)
   
@@ -24,16 +23,8 @@ to execute-activity-effect
   ;if [gathering-type] of current-activity = "hospital"
   ;[ set epistemic-infection-status  infection-status ]
   
-  let family-here count ([gatherers] of current-activity) with [member? self [my-relatives] of myself]
-  if any? my-relatives and family-here / count my-relatives > 0.5 [ set days-since-seen-relatives 0 ]
-  
-  if is-worker? 
-  [
-    let colleagues-here count ([gatherers] of current-activity) with [member? self [my-colleagues] of myself]
-    
-    if (any? other my-colleagues and colleagues-here / count my-colleagues > 0.5) [ set days-since-seen-colleagues 0 ]]
-  let friends-here count ([gatherers] of current-activity) with [member? self [my-friends] of myself]
-  if any? my-friends and friends-here / count my-friends > 0.5 [ set days-since-seen-friends 0 ]
+  update-belief-based-on-current-activity
+
   
 end
 
@@ -49,7 +40,7 @@ end
 
 
 to update-resources-based-on-current-activity
-  if not is-being-away? current-activity and current-motivation = "travelling" [error "wrong place while travelling"]
+  if not is-being-away? current-activity and current-motivation = travelling-motive [error "wrong place while travelling"]
   if current-activity = 0 [error "failed to select an activity"]
 
   if current-motivation = follow-person-in-charge-motive [stop]
@@ -249,26 +240,6 @@ to-report #workers-working-at-school
   report count workers with [is-working? and [gathering-type] of my-work = "school"]
 end
 
-;with the people decision update, this function should now only be about execution, not so much about decision [e.g. implement here the effect of getting tested at the hospital]
-to perform-activity
-reset-timer
-    select-activity
-  
-    if current-activity = 0 [error "failed to select an activity"]
-
-    ask children with [
-      is-currently-in-sitation-of-active-dependence? and
-      current-person-I-depend-on != nobody]
-    [set current-activity [current-activity] of current-person-I-depend-on
-      set current-motivation follow-person-in-charge-motive
-    ]
-
-    if not animate? [
-      move-to one-of [patches in-radius 3  with [pxcor > [pxcor] of myself]] of current-activity
-      set heading towards current-activity
-    ]
-end
-
 to-report follow-person-in-charge-motive
   report "follow person in charge"
 end
@@ -399,31 +370,23 @@ end
 
 to perform-people-activities
   reset-timer
-  set total-amount-of-capital-in-circulation 0
-  set goods-production-of-total-system 0
-  
-  ask gathering-points [set current-profit 0]
-  ask people [
-    if working-day? and member? slice-of-the-day ["afternoon" "evening"] [
-      set my-expected-income my-current-income
-    ]
-    set my-current-income 0
-    set my-previous-amount-of-capital my-amount-of-capital
-  ]
-  
-  
   
   ask people [
-    if not is-being-away? current-activity and current-motivation = "travelling" [error "wrong place while travelling"]
-    perform-activity
+    if not is-being-away? current-activity and current-motivation = travelling-motive [error "wrong place while travelling"]
+    select-activity
+    if not is-being-away? current-activity and current-motivation = travelling-motive [error (sentence "wrong place while travelling" current-activity current-motivation)]
     
-       
-    if not is-being-away? current-activity and current-motivation = "travelling" [error (sentence "wrong place while travelling" current-activity current-motivation)]
+    if is-currently-in-sitation-of-active-dependence? and current-person-I-depend-on != nobody
+    [
+      set current-activity [current-activity] of current-person-I-depend-on
+      set current-motivation follow-person-in-charge-motive
+    ]
   ]
   
+  travelling-to-activity-phase
 
   ask people [
-    if not is-being-away? current-activity and current-motivation = "travelling" [error (sentence "wrong place while travelling" current-activity current-motivation)]
+    if not is-being-away? current-activity and current-motivation = travelling-motive [error (sentence "wrong place while travelling" current-activity current-motivation)]
     execute-activity-effect
     update-needs-for-playing (list current-activity current-motivation is-I-apply-social-distancing?)
   ]

@@ -75,3 +75,25 @@ file-close
   file-print "]}"
 file-close
 end
+
+to export-profiling
+  profiler:stop
+  let _fname "report.log"
+  carefully [file-delete _fname] []
+  file-open _fname
+  file-print profiler:report
+  file-close
+end
+
+to save-world-state
+  let filename import-scenario-name
+  if file-exists? filename[ file-delete filename]
+  file-open filename
+  file-print " "
+  file-close
+  export-world filename
+end
+
+to load-scenario-from-file
+  import-world import-scenario-name
+end
